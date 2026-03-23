@@ -17,12 +17,13 @@ export function createMarkoraTheme() {
         padding: "16px 0",
         maxWidth: "800px",
         margin: "0 auto",
+        caretColor: "var(--color-text)",
       },
       ".cm-scroller": {
         overflow: "auto",
         padding: "0 48px",
       },
-      "&.cm-focused .cm-cursor": {
+      ".cm-cursor, &.cm-focused .cm-cursor": {
         borderLeftColor: "var(--color-text)",
       },
       "&.cm-focused .cm-selectionBackground, .cm-selectionBackground, ::selection":
