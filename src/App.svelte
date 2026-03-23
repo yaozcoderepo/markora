@@ -8,6 +8,7 @@
   import Toolbar from "./lib/components/Toolbar.svelte";
   import TabBar from "./lib/components/TabBar.svelte";
   import DropZone from "./lib/components/DropZone.svelte";
+  import SearchBar from "./lib/components/SearchBar.svelte";
   import {
     getTabs,
     addTab,
@@ -32,8 +33,19 @@
   const doc = getTabs();
   const settings = getSettings();
 
+  import type { EditAtInfo } from "./lib/components/MarkdownViewer.svelte";
+
   let isDragging = $state(false);
   let parseTimeout: ReturnType<typeof setTimeout> | undefined;
+  let editAtPos = $state(-1);
+
+  // Search state
+  let searchOpen = $state(false);
+  let searchQuery = $state("");
+  let matchCount = $state(0);
+  let currentMatch = $state(0);
+  let viewerRef = $state<MarkdownViewer>();
+  let editorRef = $state<MarkdownEditor>();
 
   async function loadFile(path: string) {
     setLoading(true);
@@ -98,7 +110,32 @@
     const active = doc.active;
     if (!active) return;
     const newMode = active.mode === "edit" ? "preview" : "edit";
+    if (newMode === "edit") {
+      editAtPos = -1;
+    }
     setTabMode(active.id, newMode);
+  }
+
+  function handleEditAt(info: EditAtInfo) {
+    const active = doc.active;
+    if (!active) return;
+
+    // Compute exact character position in the raw markdown
+    const lines = active.rawContent.split("\n");
+    // Get the absolute offset of startLine
+    let blockStart = 0;
+    for (let i = 0; i < info.startLine - 1 && i < lines.length; i++) {
+      blockStart += lines[i].length + 1; // +1 for newline
+    }
+    // Get the block text (startLine to endLine inclusive)
+    const endIdx = Math.min(info.endLine, lines.length);
+    const blockLines = lines.slice(info.startLine - 1, endIdx);
+    const blockText = blockLines.join("\n");
+    // Apply fraction to get offset within block
+    const offsetInBlock = Math.round(info.fraction * blockText.length);
+    editAtPos = blockStart + Math.min(offsetInBlock, blockText.length);
+
+    setTabMode(active.id, "edit");
   }
 
   async function handleSave() {
@@ -135,6 +172,42 @@
     addNewTab();
   }
 
+  function handleToggleSearch() {
+    if (searchOpen) {
+      handleCloseSearch();
+    } else {
+      searchOpen = true;
+    }
+  }
+
+  function handleCloseSearch() {
+    searchOpen = false;
+    searchQuery = "";
+    matchCount = 0;
+    currentMatch = 0;
+    if (doc.mode === "edit") editorRef?.clearSearch();
+    else viewerRef?.clearSearch();
+  }
+
+  function handleSearchQuery(query: string) {
+    searchQuery = query;
+  }
+
+  function handleSearchResults(count: number, current: number) {
+    matchCount = count;
+    currentMatch = current;
+  }
+
+  function handleSearchNext() {
+    if (doc.mode === "edit") editorRef?.searchNext();
+    else viewerRef?.searchNext();
+  }
+
+  function handleSearchPrev() {
+    if (doc.mode === "edit") editorRef?.searchPrev();
+    else viewerRef?.searchPrev();
+  }
+
   onMount(() => {
     initTheme();
 
@@ -151,6 +224,14 @@
       } else if (e.metaKey && e.key === "n") {
         e.preventDefault();
         handleNewFile();
+      } else if (e.metaKey && e.key === "f") {
+        e.preventDefault();
+        if (!searchOpen && doc.active) {
+          searchOpen = true;
+        }
+      } else if (e.key === "Escape" && searchOpen) {
+        e.preventDefault();
+        handleCloseSearch();
       }
     };
     window.addEventListener("keydown", handleKeydown);
@@ -218,6 +299,7 @@
     onToggleMode={handleToggleMode}
     onSave={handleSave}
     onNewFile={handleNewFile}
+    onToggleSearch={handleToggleSearch}
   />
   <TabBar
     tabs={doc.list}
@@ -227,6 +309,17 @@
   />
 
   <div class="main">
+    {#if searchOpen && doc.active}
+      <SearchBar
+        {matchCount}
+        {currentMatch}
+        onQueryChange={handleSearchQuery}
+        onNext={handleSearchNext}
+        onPrev={handleSearchPrev}
+        onClose={handleCloseSearch}
+      />
+    {/if}
+
     {#if settings.outlineVisible && doc.headings.length > 0 && doc.mode !== "edit"}
       <Outline headings={doc.headings} />
     {/if}
@@ -239,12 +332,22 @@
       {#if doc.mode === "edit"}
         {#key doc.activeId}
           <MarkdownEditor
+            bind:this={editorRef}
             content={doc.rawContent}
+            initialPos={editAtPos}
             onContentChange={handleContentChange}
+            searchQuery={searchOpen ? searchQuery : ""}
+            onSearchResults={handleSearchResults}
           />
         {/key}
       {:else}
-        <MarkdownViewer html={doc.html} />
+        <MarkdownViewer
+          bind:this={viewerRef}
+          html={doc.html}
+          onEditAt={handleEditAt}
+          searchQuery={searchOpen ? searchQuery : ""}
+          onSearchResults={handleSearchResults}
+        />
       {/if}
     {:else}
       <div class="empty-state">
@@ -286,6 +389,7 @@
     display: flex;
     flex: 1;
     overflow: hidden;
+    position: relative;
   }
 
   .status {

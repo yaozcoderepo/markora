@@ -39,6 +39,7 @@ fn build_options() -> Options<'static> {
 
     options.render = RenderOptions {
         unsafe_: true, // Allow raw HTML in markdown
+        sourcepos: true, // Add data-sourcepos attributes for editor line mapping
         ..Default::default()
     };
 
@@ -140,7 +141,7 @@ mod tests {
     fn test_gfm_table() {
         let md = "| A | B |\n|---|---|\n| 1 | 2 |";
         let result = parse_markdown(md);
-        assert!(result.html.contains("<table>"));
+        assert!(result.html.contains("<table"));
     }
 
     #[test]

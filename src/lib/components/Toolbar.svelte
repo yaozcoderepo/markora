@@ -16,6 +16,7 @@
     onToggleMode,
     onSave,
     onNewFile,
+    onToggleSearch,
   }: {
     fileName: string | null;
     mode: TabMode;
@@ -25,6 +26,7 @@
     onToggleMode: () => void;
     onSave: () => void;
     onNewFile: () => void;
+    onToggleSearch: () => void;
   } = $props();
 
   const settings = getSettings();
@@ -58,6 +60,19 @@
 
   <div class="toolbar-right">
     {#if hasFile}
+      <!-- Search -->
+      <button
+        class="toolbar-btn"
+        onclick={onToggleSearch}
+        title="Search (Cmd+F)"
+      >
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+          <path
+            d="M11.5 7a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zm-.82 4.74a6 6 0 111.06-1.06l3.04 3.04a.75.75 0 11-1.06 1.06l-3.04-3.04z"
+          />
+        </svg>
+      </button>
+
       <!-- Edit/Preview toggle -->
       <button
         class="toolbar-btn"
