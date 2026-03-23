@@ -153,6 +153,40 @@
   font-size: inherit;
 }
 
+/* Code block copy button */
+.markdown-body pre .code-copy-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--color-code-border);
+  border-radius: 6px;
+  background: var(--color-code-bg);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s, background 0.15s, color 0.15s;
+}
+
+.markdown-body pre:hover .code-copy-btn {
+  opacity: 1;
+}
+
+.markdown-body pre .code-copy-btn:hover {
+  background: var(--color-hover);
+  color: var(--color-text);
+  border-color: var(--color-border);
+}
+
+.markdown-body pre .code-copy-btn.copied {
+  color: #2da44e;
+  opacity: 1;
+}
+
 /* Tables */
 .markdown-body table {
   width: 100%;
