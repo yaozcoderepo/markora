@@ -36,14 +36,18 @@
       >
         <span class="tab-name">{tab.fileName}</span>
         <span
-          class="tab-close"
+          class="tab-indicator"
+          class:dirty={tab.isDirty}
           role="button"
           tabindex="-1"
           onclick={(e) => { e.stopPropagation(); onClose(tab.id); }}
           onkeydown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); onClose(tab.id); } }}
-          title="Close tab"
+          title={tab.isDirty ? "Unsaved changes — click to close" : "Close tab"}
         >
-          <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor">
+          {#if tab.isDirty}
+            <span class="dirty-dot"></span>
+          {/if}
+          <svg class="close-icon" width="10" height="10" viewBox="0 0 10 10" fill="currentColor">
             <path
               d="M1.5 1.5l7 7M8.5 1.5l-7 7"
               stroke="currentColor"
@@ -107,7 +111,7 @@
     text-overflow: ellipsis;
   }
 
-  .tab-close {
+  .tab-indicator {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -119,16 +123,38 @@
     background: transparent;
     color: var(--color-text-muted);
     cursor: pointer;
-    opacity: 0;
     flex-shrink: 0;
+    position: relative;
   }
 
-  .tab:hover .tab-close,
-  .tab.active .tab-close {
+  .close-icon {
+    opacity: 0;
+  }
+
+  .dirty-dot {
+    position: absolute;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--color-text-muted);
+  }
+
+  .tab:hover .close-icon,
+  .tab.active .close-icon {
     opacity: 1;
   }
 
-  .tab-close:hover {
+  .tab:hover .dirty-dot,
+  .tab.active:hover .dirty-dot {
+    display: none;
+  }
+
+  /* Show dirty dot on active tab when not hovered */
+  .tab.active .dirty-dot {
+    display: block;
+  }
+
+  .tab-indicator:hover {
     background: var(--color-hover);
     color: var(--color-text);
   }

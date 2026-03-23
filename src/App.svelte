@@ -1,8 +1,9 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { open } from "@tauri-apps/plugin-dialog";
+  import { open, save } from "@tauri-apps/plugin-dialog";
   import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
   import MarkdownViewer from "./lib/components/MarkdownViewer.svelte";
+  import MarkdownEditor from "./lib/components/MarkdownEditor.svelte";
   import Outline from "./lib/components/Outline.svelte";
   import Toolbar from "./lib/components/Toolbar.svelte";
   import TabBar from "./lib/components/TabBar.svelte";
@@ -10,9 +11,13 @@
   import {
     getTabs,
     addTab,
+    addNewTab,
     closeTab,
     switchTab,
     updateTabContent,
+    updateRawContent,
+    setTabMode,
+    markSaved,
     setLoading,
     setError,
   } from "./lib/stores/document.svelte.js";
@@ -20,6 +25,7 @@
   import {
     openFile,
     parseMarkdown,
+    saveFile,
     watchFile,
   } from "./lib/services/tauri-commands.js";
 
@@ -27,13 +33,14 @@
   const settings = getSettings();
 
   let isDragging = $state(false);
+  let parseTimeout: ReturnType<typeof setTimeout> | undefined;
 
   async function loadFile(path: string) {
     setLoading(true);
     try {
       const content = await openFile(path);
       const parsed = await parseMarkdown(content);
-      addTab(path, parsed.html, parsed.headings);
+      addTab(path, content, parsed.html, parsed.headings);
       await watchFile(path);
     } catch (e) {
       setError(String(e));
@@ -56,17 +63,94 @@
   }
 
   function handleCloseTab(id: string) {
+    const tab = doc.list.find((t) => t.id === id);
+    if (tab?.isDirty) {
+      // Simple confirm for dirty tabs
+      if (!confirm(`"${tab.fileName}" has unsaved changes. Close anyway?`)) {
+        return;
+      }
+    }
     closeTab(id);
+  }
+
+  function handleContentChange(content: string) {
+    const active = doc.active;
+    if (!active) return;
+    updateRawContent(active.id, content);
+
+    // Debounce markdown parsing for preview
+    clearTimeout(parseTimeout);
+    parseTimeout = setTimeout(async () => {
+      try {
+        const parsed = await parseMarkdown(content);
+        const tab = doc.active;
+        if (tab && tab.rawContent === content) {
+          tab.html = parsed.html;
+          tab.headings = parsed.headings;
+        }
+      } catch (_) {
+        // Parse errors during typing are expected
+      }
+    }, 300);
+  }
+
+  function handleToggleMode() {
+    const active = doc.active;
+    if (!active) return;
+    const newMode = active.mode === "edit" ? "preview" : "edit";
+    setTabMode(active.id, newMode);
+  }
+
+  async function handleSave() {
+    const active = doc.active;
+    if (!active) return;
+
+    let path = active.path;
+    if (!path) {
+      // New file — show save dialog
+      const selected = await save({
+        filters: [{ name: "Markdown", extensions: ["md"] }],
+      });
+      if (!selected) return;
+      path = selected;
+    }
+
+    try {
+      await saveFile(path, active.rawContent);
+      markSaved(active.id, path);
+      // Re-parse to keep preview in sync
+      const parsed = await parseMarkdown(active.rawContent);
+      active.html = parsed.html;
+      active.headings = parsed.headings;
+      // Start watching the file if it's newly saved
+      if (!active.path || active.path !== path) {
+        await watchFile(path);
+      }
+    } catch (e) {
+      setError(String(e));
+    }
+  }
+
+  function handleNewFile() {
+    addNewTab();
   }
 
   onMount(() => {
     initTheme();
 
-    // Keyboard shortcut: Cmd+O
     const handleKeydown = (e: KeyboardEvent) => {
       if (e.metaKey && e.key === "o") {
         e.preventDefault();
         handleOpenFile();
+      } else if (e.metaKey && e.key === "s") {
+        e.preventDefault();
+        handleSave();
+      } else if (e.metaKey && e.key === "e") {
+        e.preventDefault();
+        handleToggleMode();
+      } else if (e.metaKey && e.key === "n") {
+        e.preventDefault();
+        handleNewFile();
       }
     };
     window.addEventListener("keydown", handleKeydown);
@@ -103,11 +187,10 @@
       "file-changed",
       async (event) => {
         const path = event.payload;
-        // Reload any open tab with this path
         try {
           const content = await openFile(path);
           const parsed = await parseMarkdown(content);
-          updateTabContent(path, parsed.html, parsed.headings);
+          updateTabContent(path, content, parsed.html, parsed.headings);
         } catch (e) {
           console.error("Failed to reload file:", e);
         }
@@ -120,12 +203,22 @@
       window.removeEventListener("drop", preventDefaults);
       unlistenDragDrop.then((fn) => fn());
       unlistenFileChanged.then((fn) => fn());
+      clearTimeout(parseTimeout);
     };
   });
 </script>
 
 <div class="app">
-  <Toolbar fileName={doc.fileName} onOpenFile={handleOpenFile} />
+  <Toolbar
+    fileName={doc.fileName}
+    mode={doc.mode}
+    isDirty={doc.isDirty}
+    hasFile={!doc.isEmpty}
+    onOpenFile={handleOpenFile}
+    onToggleMode={handleToggleMode}
+    onSave={handleSave}
+    onNewFile={handleNewFile}
+  />
   <TabBar
     tabs={doc.list}
     activeId={doc.activeId}
@@ -134,7 +227,7 @@
   />
 
   <div class="main">
-    {#if settings.outlineVisible && doc.headings.length > 0}
+    {#if settings.outlineVisible && doc.headings.length > 0 && doc.mode !== "edit"}
       <Outline headings={doc.headings} />
     {/if}
 
@@ -142,18 +235,34 @@
       <div class="status">Loading...</div>
     {:else if doc.error}
       <div class="status error">{doc.error}</div>
-    {:else if doc.html}
-      <MarkdownViewer html={doc.html} />
+    {:else if doc.active}
+      {#if doc.mode === "edit"}
+        {#key doc.activeId}
+          <MarkdownEditor
+            content={doc.rawContent}
+            onContentChange={handleContentChange}
+          />
+        {/key}
+      {:else}
+        <MarkdownViewer html={doc.html} />
+      {/if}
     {:else}
       <div class="empty-state">
         <div class="empty-content">
           <h1 class="app-name">Markora</h1>
-          <p class="app-tagline">A beautiful markdown viewer</p>
+          <p class="app-tagline">A beautiful markdown viewer & editor</p>
           <div class="empty-actions">
             <button class="open-btn" onclick={handleOpenFile}>
               Open File
             </button>
-            <p class="shortcut-hint">or press <kbd>Cmd</kbd> + <kbd>O</kbd></p>
+            <button class="new-btn" onclick={handleNewFile}>
+              New File
+            </button>
+            <p class="shortcut-hint">
+              <kbd>Cmd</kbd>+<kbd>O</kbd> open &middot;
+              <kbd>Cmd</kbd>+<kbd>N</kbd> new &middot;
+              <kbd>Cmd</kbd>+<kbd>E</kbd> edit
+            </p>
             <p class="drag-hint">You can also drag & drop a .md file</p>
           </div>
         </div>
@@ -224,18 +333,28 @@
     gap: 0.75rem;
   }
 
-  .open-btn {
+  .open-btn,
+  .new-btn {
     padding: 0.6rem 1.5rem;
     border: none;
     border-radius: 8px;
-    background: var(--color-accent);
-    color: white;
     font-size: 0.9rem;
     font-weight: 500;
     cursor: pointer;
   }
 
-  .open-btn:hover {
+  .open-btn {
+    background: var(--color-accent);
+    color: white;
+  }
+
+  .new-btn {
+    background: var(--color-hover);
+    color: var(--color-text);
+  }
+
+  .open-btn:hover,
+  .new-btn:hover {
     opacity: 0.9;
   }
 

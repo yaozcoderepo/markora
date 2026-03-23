@@ -16,3 +16,7 @@ export async function watchFile(path: string): Promise<void> {
 export async function unwatchFile(): Promise<void> {
   return invoke("unwatch_file");
 }
+
+export async function saveFile(path: string, content: string): Promise<void> {
+  return invoke("save_file", { path, content });
+}

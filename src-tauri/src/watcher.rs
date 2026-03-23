@@ -1,6 +1,7 @@
 use notify_debouncer_mini::{new_debouncer, DebouncedEventKind};
 use std::path::PathBuf;
-use std::sync::Mutex;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tauri::{AppHandle, Emitter, Manager};
 
@@ -34,12 +35,17 @@ pub fn watch_file(path: String, app: AppHandle) -> Result<(), String> {
 
     let app_handle = app.clone();
     let watched_path = file_path.clone();
+    let save_guard = app.state::<Arc<AtomicBool>>().inner().clone();
 
     let mut debouncer = new_debouncer(Duration::from_millis(300), move |res: Result<Vec<notify_debouncer_mini::DebouncedEvent>, notify::Error>| {
         match res {
             Ok(events) => {
                 let relevant = events.iter().any(|e| e.kind == DebouncedEventKind::Any);
                 if relevant {
+                    // Skip if this change was triggered by our own save
+                    if save_guard.swap(false, Ordering::SeqCst) {
+                        return;
+                    }
                     let _ = app_handle.emit("file-changed", watched_path.to_string_lossy().to_string());
                 }
             }

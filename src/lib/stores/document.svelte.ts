@@ -1,12 +1,17 @@
 import type { Heading } from "../types/index.js";
 
+export type TabMode = "edit" | "preview";
+
 export interface Tab {
   id: string;
   path: string;
   fileName: string;
+  rawContent: string;
   html: string;
   headings: Heading[];
   scrollTop: number;
+  isDirty: boolean;
+  mode: TabMode;
 }
 
 let tabs = $state<Tab[]>([]);
@@ -41,6 +46,15 @@ export function getTabs() {
     get fileName() {
       return getActiveTab()?.fileName ?? null;
     },
+    get rawContent() {
+      return getActiveTab()?.rawContent ?? "";
+    },
+    get isDirty() {
+      return getActiveTab()?.isDirty ?? false;
+    },
+    get mode(): TabMode {
+      return getActiveTab()?.mode ?? "preview";
+    },
     get isLoading() {
       return isLoading;
     },
@@ -55,6 +69,7 @@ export function getTabs() {
 
 export function addTab(
   path: string,
+  rawContent: string,
   html: string,
   headings: Heading[],
 ) {
@@ -62,7 +77,7 @@ export function addTab(
   const existing = tabs.find((t) => t.path === path);
   if (existing) {
     activeTabId = existing.id;
-    // Update content in case it changed
+    existing.rawContent = rawContent;
     existing.html = html;
     existing.headings = headings;
     return;
@@ -70,7 +85,24 @@ export function addTab(
 
   const id = `tab-${Date.now()}`;
   const fileName = path.split("/").pop() ?? path;
-  tabs.push({ id, path, fileName, html, headings, scrollTop: 0 });
+  tabs.push({ id, path, fileName, rawContent, html, headings, scrollTop: 0, isDirty: false, mode: "preview" });
+  activeTabId = id;
+  error = null;
+}
+
+export function addNewTab() {
+  const id = `tab-${Date.now()}`;
+  tabs.push({
+    id,
+    path: "",
+    fileName: "Untitled.md",
+    rawContent: "",
+    html: "",
+    headings: [],
+    scrollTop: 0,
+    isDirty: false,
+    mode: "edit",
+  });
   activeTabId = id;
   error = null;
 }
@@ -82,7 +114,6 @@ export function closeTab(id: string) {
   tabs.splice(idx, 1);
 
   if (activeTabId === id) {
-    // Switch to nearest tab
     if (tabs.length === 0) {
       activeTabId = null;
     } else {
@@ -93,18 +124,48 @@ export function closeTab(id: string) {
 }
 
 export function switchTab(id: string) {
-  // Save scroll position of current tab
   const current = getActiveTab();
   if (current) {
-    const viewer = document.querySelector(".viewer");
-    current.scrollTop = viewer?.scrollTop ?? 0;
+    const scrollEl = current.mode === "edit"
+      ? document.querySelector(".cm-editor .cm-scroller")
+      : document.querySelector(".viewer");
+    current.scrollTop = scrollEl?.scrollTop ?? 0;
   }
   activeTabId = id;
 }
 
-export function updateTabContent(path: string, html: string, headings: Heading[]) {
+export function updateRawContent(tabId: string, content: string) {
+  const tab = tabs.find((t) => t.id === tabId);
+  if (tab) {
+    tab.rawContent = content;
+    tab.isDirty = true;
+  }
+}
+
+export function setTabMode(tabId: string, mode: TabMode) {
+  const tab = tabs.find((t) => t.id === tabId);
+  if (tab) {
+    tab.mode = mode;
+  }
+}
+
+export function markSaved(tabId: string, path?: string) {
+  const tab = tabs.find((t) => t.id === tabId);
+  if (tab) {
+    tab.isDirty = false;
+    if (path) {
+      tab.path = path;
+      tab.fileName = path.split("/").pop() ?? path;
+    }
+  }
+}
+
+export function updateTabContent(path: string, rawContent: string, html: string, headings: Heading[]) {
   const tab = tabs.find((t) => t.path === path);
   if (tab) {
+    // Don't overwrite user's unsaved edits
+    if (tab.isDirty) return;
+    tab.rawContent = rawContent;
     tab.html = html;
     tab.headings = headings;
   }

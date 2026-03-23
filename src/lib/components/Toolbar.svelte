@@ -1,4 +1,5 @@
 <script lang="ts">
+  import type { TabMode } from "../stores/document.svelte.js";
   import {
     getSettings,
     setTheme,
@@ -6,8 +7,25 @@
     type Theme,
   } from "../stores/settings.svelte.js";
 
-  let { fileName, onOpenFile }: { fileName: string | null; onOpenFile: () => void } =
-    $props();
+  let {
+    fileName,
+    mode,
+    isDirty,
+    hasFile,
+    onOpenFile,
+    onToggleMode,
+    onSave,
+    onNewFile,
+  }: {
+    fileName: string | null;
+    mode: TabMode;
+    isDirty: boolean;
+    hasFile: boolean;
+    onOpenFile: () => void;
+    onToggleMode: () => void;
+    onSave: () => void;
+    onNewFile: () => void;
+  } = $props();
 
   const settings = getSettings();
 
@@ -33,10 +51,48 @@
         <rect x="1" y="12" width="14" height="1.5" rx="0.5" />
       </svg>
     </button>
-    <span class="file-name">{fileName ?? "Markora"}</span>
+    <span class="file-name">
+      {fileName ?? "Markora"}{isDirty ? " \u2022" : ""}
+    </span>
   </div>
 
   <div class="toolbar-right">
+    {#if hasFile}
+      <!-- Edit/Preview toggle -->
+      <button
+        class="toolbar-btn"
+        onclick={onToggleMode}
+        title={mode === "edit" ? "Preview (Cmd+E)" : "Edit (Cmd+E)"}
+      >
+        {#if mode === "edit"}
+          <!-- Eye icon — switch to preview -->
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+            <path d="M8 3.5C4.136 3.5 1.073 6.206.29 7.702a.61.61 0 000 .596C1.073 9.794 4.136 12.5 8 12.5s6.927-2.706 7.71-4.202a.61.61 0 000-.596C14.927 6.206 11.864 3.5 8 3.5zM8 11a3 3 0 110-6 3 3 0 010 6z" />
+            <circle cx="8" cy="8" r="1.5" />
+          </svg>
+        {:else}
+          <!-- Pencil icon — switch to edit -->
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+            <path d="M11.013 1.427a1.75 1.75 0 012.474 0l1.086 1.086a1.75 1.75 0 010 2.474l-8.61 8.61c-.21.21-.47.364-.756.445l-3.251.93a.75.75 0 01-.927-.928l.929-3.25a1.75 1.75 0 01.445-.758l8.61-8.61zm1.414 1.06a.25.25 0 00-.354 0L3.463 11.1a.25.25 0 00-.064.108l-.631 2.208 2.208-.63a.25.25 0 00.108-.064l8.609-8.61a.25.25 0 000-.353l-1.086-1.086z" />
+          </svg>
+        {/if}
+      </button>
+
+      <!-- Save button -->
+      {#if isDirty}
+        <button class="toolbar-btn" onclick={onSave} title="Save (Cmd+S)">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+            <path d="M11.5 1H2.5A1.5 1.5 0 001 2.5v11A1.5 1.5 0 002.5 15h11a1.5 1.5 0 001.5-1.5V4.5L11.5 1zM8 13a2 2 0 110-4 2 2 0 010 4zM11 5H3V2h8v3z" />
+          </svg>
+        </button>
+      {/if}
+    {/if}
+
+    <button class="toolbar-btn" onclick={onNewFile} title="New file (Cmd+N)">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+        <path d="M8 2a.5.5 0 01.5.5v5h5a.5.5 0 010 1h-5v5a.5.5 0 01-1 0v-5h-5a.5.5 0 010-1h5v-5A.5.5 0 018 2z" />
+      </svg>
+    </button>
     <button class="toolbar-btn" onclick={onOpenFile} title="Open file (Cmd+O)">
       <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
         <path
