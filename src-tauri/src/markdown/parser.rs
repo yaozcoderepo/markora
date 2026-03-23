@@ -103,10 +103,10 @@ pub fn parse_markdown(content: &str) -> ParsedDocument {
     let mut html_string = String::from_utf8(html).unwrap();
 
     // Inject heading IDs into the rendered HTML
+    // Search for "<h{level} data-sourcepos=" to avoid re-matching already-processed headings
     for heading in &headings {
-        let tag = format!("<h{}", heading.level);
-        let tag_with_id = format!("<h{} id=\"{}\"", heading.level, heading.id);
-        // Replace only the first occurrence of each heading tag
+        let tag = format!("<h{} data-sourcepos=", heading.level);
+        let tag_with_id = format!("<h{} id=\"{}\" data-sourcepos=", heading.level, heading.id);
         if let Some(pos) = html_string.find(&tag) {
             html_string = format!(
                 "{}{}{}",

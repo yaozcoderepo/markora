@@ -14,15 +14,24 @@
     onEditAt,
     searchQuery = "",
     onSearchResults,
+    onScrollContainerReady,
   }: {
     html: string;
     onEditAt?: (info: EditAtInfo) => void;
     searchQuery?: string;
     onSearchResults?: (count: number, current: number) => void;
+    onScrollContainerReady?: (el: HTMLElement) => void;
   } = $props();
 
   const settings = getSettings();
   let container: HTMLElement;
+
+  // Notify parent when scroll container is ready
+  $effect(() => {
+    if (container) {
+      onScrollContainerReady?.(container);
+    }
+  });
 
   // Search state (plain variables, not reactive — managed internally)
   let marks: HTMLElement[] = [];

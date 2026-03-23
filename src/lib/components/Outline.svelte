@@ -1,20 +1,36 @@
 <script lang="ts">
   import type { Heading } from "../types/index.js";
 
-  let { headings }: { headings: Heading[] } = $props();
+  let {
+    headings,
+    scrollContainer,
+  }: {
+    headings: Heading[];
+    scrollContainer?: HTMLElement | null;
+  } = $props();
 
   let activeId = $state<string | null>(null);
 
   function scrollToHeading(id: string) {
     const el = document.getElementById(id);
-    if (el) {
+    if (!el) return;
+
+    // If we have a scroll container, calculate offset and scroll it directly
+    if (scrollContainer) {
+      const containerRect = scrollContainer.getBoundingClientRect();
+      const elRect = el.getBoundingClientRect();
+      const offset = elRect.top - containerRect.top + scrollContainer.scrollTop;
+      scrollContainer.scrollTo({ top: offset - 20, behavior: "smooth" });
+    } else {
       el.scrollIntoView({ behavior: "smooth", block: "start" });
-      activeId = id;
     }
+    activeId = id;
   }
 
   $effect(() => {
     if (headings.length === 0) return;
+
+    const root = scrollContainer ?? null;
 
     const observer = new IntersectionObserver(
       (entries) => {
@@ -25,7 +41,7 @@
           }
         }
       },
-      { rootMargin: "-10% 0px -80% 0px" },
+      { root, rootMargin: "-10% 0px -80% 0px" },
     );
 
     for (const heading of headings) {

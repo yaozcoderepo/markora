@@ -46,6 +46,7 @@
   let currentMatch = $state(0);
   let viewerRef = $state<MarkdownViewer>();
   let editorRef = $state<MarkdownEditor>();
+  let viewerScrollContainer = $state<HTMLElement | null>(null);
 
   async function loadFile(path: string) {
     setLoading(true);
@@ -321,7 +322,7 @@
     {/if}
 
     {#if settings.outlineVisible && doc.headings.length > 0 && doc.mode !== "edit"}
-      <Outline headings={doc.headings} />
+      <Outline headings={doc.headings} scrollContainer={viewerScrollContainer} />
     {/if}
 
     {#if doc.isLoading}
@@ -347,6 +348,7 @@
           onEditAt={handleEditAt}
           searchQuery={searchOpen ? searchQuery : ""}
           onSearchResults={handleSearchResults}
+          onScrollContainerReady={(el) => (viewerScrollContainer = el)}
         />
       {/if}
     {:else}
