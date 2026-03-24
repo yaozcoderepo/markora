@@ -184,7 +184,7 @@ Homebrew Cask lets macOS users install Markora with a single command. This requi
 Make sure you've completed the [GitHub Releases](#github-releases-recommended) steps above. You need a public DMG download URL like:
 
 ```
-https://github.com/zhaoyao/markora/releases/download/v0.1.0/Markora_0.1.0_aarch64.dmg
+https://github.com/yaozcoderepo/markora/releases/download/v0.1.0/Markora_0.1.0_aarch64.dmg
 ```
 
 #### Step 2: Create a Homebrew tap repository
@@ -225,10 +225,10 @@ cask "markora" do
   version "0.1.0"
   sha256 "a1b2c3d4e5f6..."  # Replace with actual hash from Step 3
 
-  url "https://github.com/zhaoyao/markora/releases/download/v#{version}/Markora_#{version}_aarch64.dmg"
+  url "https://github.com/yaozcoderepo/markora/releases/download/v#{version}/Markora_#{version}_aarch64.dmg"
   name "Markora"
   desc "A fast, native markdown viewer and editor"
-  homepage "https://github.com/zhaoyao/markora"
+  homepage "https://github.com/yaozcoderepo/markora"
 
   depends_on macos: ">= :monterey"
 
@@ -271,7 +271,7 @@ git push origin main
 Users can now install Markora with:
 
 ```bash
-brew tap zhaoyao/tap
+brew tap yaozcoderepo/tap
 brew install --cask markora
 ```
 
@@ -287,22 +287,77 @@ brew zap markora               # Remove app + all associated data
 
 #### Updating the cask for a new release
 
-When you release a new version (e.g., `v0.2.0`):
+See the [Releasing a New Version](#releasing-a-new-version) section below — step 5 covers updating the cask.
 
-1. Build and publish the new DMG to GitHub Releases
-2. Generate the new SHA-256: `shasum -a 256 Markora_0.2.0_aarch64.dmg`
-3. Update `Casks/markora.rb` — change `version` and `sha256`
-4. Commit and push to the tap repo
+### Releasing a New Version
+
+This is the complete end-to-end workflow for releasing a new version. The example below releases `0.2.0` — replace with your actual version number.
+
+#### Step 1: Bump the version
+
+Update the version in all three files:
 
 ```bash
-cd homebrew-tap
-# Edit Casks/markora.rb with new version and sha256
+# package.json
+sed -i '' 's/"version": "0.1.0"/"version": "0.2.0"/' package.json
+
+# src-tauri/tauri.conf.json
+sed -i '' 's/"version": "0.1.0"/"version": "0.2.0"/' src-tauri/tauri.conf.json
+
+# src-tauri/Cargo.toml
+sed -i '' 's/^version = "0.1.0"/version = "0.2.0"/' src-tauri/Cargo.toml
+```
+
+#### Step 2: Commit, tag, and push
+
+```bash
+git add package.json src-tauri/tauri.conf.json src-tauri/Cargo.toml
+git commit -m "Release v0.2.0"
+git tag v0.2.0
+git push origin main --tags
+```
+
+#### Step 3: Build the production DMG
+
+```bash
+pnpm tauri build
+```
+
+The DMG is written to `src-tauri/target/release/bundle/dmg/Markora_0.2.0_aarch64.dmg`.
+
+#### Step 4: Create the GitHub release
+
+```bash
+gh release create v0.2.0 \
+  "src-tauri/target/release/bundle/dmg/Markora_0.2.0_aarch64.dmg" \
+  --title "Markora v0.2.0" \
+  --notes "Release notes here"
+```
+
+#### Step 5: Update the Homebrew Cask
+
+```bash
+# Get the new checksum
+shasum -a 256 src-tauri/target/release/bundle/dmg/Markora_0.2.0_aarch64.dmg
+
+# Clone the tap repo and update the formula
+cd /tmp && git clone https://github.com/yaozcoderepo/homebrew-tap.git && cd homebrew-tap
+
+# Replace NEW_SHA below with the hash from the shasum command above
+sed -i '' 's/version "0.1.0"/version "0.2.0"/' Casks/markora.rb
+sed -i '' 's/sha256 ".*"/sha256 "NEW_SHA"/' Casks/markora.rb
+
+# Commit and push
 git add Casks/markora.rb
 git commit -m "Update markora to v0.2.0"
 git push origin main
 ```
 
-Users then pick up the update with `brew upgrade --cask markora`.
+Users then pick up the update with:
+
+```bash
+brew update && brew upgrade --cask markora
+```
 
 ### CI/CD with GitHub Actions
 
@@ -341,7 +396,7 @@ jobs:
           files: src-tauri/target/release/bundle/dmg/*.dmg
 ```
 
-This builds and uploads the DMG to GitHub Releases automatically whenever you push a version tag.
+This builds and uploads the DMG to GitHub Releases automatically whenever you push a version tag. You still need to manually update the Homebrew cask (step 5 above) after the CI release completes.
 
 ## License
 
