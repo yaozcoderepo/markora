@@ -23,6 +23,7 @@
     setError,
   } from "./lib/stores/document.svelte.js";
   import { getSettings, initTheme } from "./lib/stores/settings.svelte.js";
+  import { isModKey, modKey } from "./lib/utils/platform.js";
   import {
     openFile,
     parseMarkdown,
@@ -213,19 +214,19 @@
     initTheme();
 
     const handleKeydown = (e: KeyboardEvent) => {
-      if (e.metaKey && e.key === "o") {
+      if (isModKey(e) && e.key === "o") {
         e.preventDefault();
         handleOpenFile();
-      } else if (e.metaKey && e.key === "s") {
+      } else if (isModKey(e) && e.key === "s") {
         e.preventDefault();
         handleSave();
-      } else if (e.metaKey && e.key === "e") {
+      } else if (isModKey(e) && e.key === "e") {
         e.preventDefault();
         handleToggleMode();
-      } else if (e.metaKey && e.key === "n") {
+      } else if (isModKey(e) && e.key === "n") {
         e.preventDefault();
         handleNewFile();
-      } else if (e.metaKey && e.key === "f") {
+      } else if (isModKey(e) && e.key === "f") {
         e.preventDefault();
         if (!searchOpen && doc.active) {
           searchOpen = true;
@@ -364,9 +365,9 @@
               New File
             </button>
             <p class="shortcut-hint">
-              <kbd>Cmd</kbd>+<kbd>O</kbd> open &middot;
-              <kbd>Cmd</kbd>+<kbd>N</kbd> new &middot;
-              <kbd>Cmd</kbd>+<kbd>E</kbd> edit
+              <kbd>{modKey}</kbd>+<kbd>O</kbd> open &middot;
+              <kbd>{modKey}</kbd>+<kbd>N</kbd> new &middot;
+              <kbd>{modKey}</kbd>+<kbd>E</kbd> edit
             </p>
             <p class="drag-hint">You can also drag & drop a .md file</p>
           </div>

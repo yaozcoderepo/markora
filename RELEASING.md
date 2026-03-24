@@ -17,7 +17,9 @@ This guide covers publishing Markora — from a first release to ongoing version
    pnpm tauri build
    ```
 
-3. **Create a GitHub release** and attach the DMG:
+3. **Create a GitHub release** and attach the installers:
+
+   On macOS:
 
    ```bash
    gh release create v0.1.0 \
@@ -26,7 +28,13 @@ This guide covers publishing Markora — from a first release to ongoing version
      --notes "Initial release"
    ```
 
-   Users download the `.dmg`, open it, and drag `Markora.app` into `/Applications`.
+   On Windows (or upload the Windows artifact to the same release):
+
+   ```bash
+   gh release upload v0.1.0 "src-tauri/target/release/bundle/nsis/Markora_0.1.0_x64-setup.exe"
+   ```
+
+   macOS users download the `.dmg`; Windows users download the `-setup.exe`.
 
 ## Homebrew Cask
 
@@ -142,6 +150,8 @@ brew zap markora               # Remove app + all associated data
 
 This is the complete end-to-end workflow for releasing a new version. The example below upgrades from `0.1.0` to `0.2.0` — replace both the old and new version numbers with your actual values.
 
+> **Note:** The commands below are shown for macOS/Linux (bash). Windows equivalents are noted where they differ. On Windows, use **PowerShell** or **Git Bash**.
+
 ### Step 1: Bump the version
 
 The version must be updated in **three files** to stay in sync. Missing any one of them will cause build errors or mismatched version strings in the app.
@@ -154,22 +164,32 @@ The version must be updated in **three files** to stay in sync. Missing any one 
 
 Run the following (replace `0.1.0` and `0.2.0` with your current and new versions):
 
+**macOS / Linux (bash):**
+
 ```bash
-# package.json — update the "version" field
 sed -i '' 's/"version": "0.1.0"/"version": "0.2.0"/' package.json
-
-# src-tauri/tauri.conf.json — update the "version" field
 sed -i '' 's/"version": "0.1.0"/"version": "0.2.0"/' src-tauri/tauri.conf.json
-
-# src-tauri/Cargo.toml — update the version key (anchored to line start to avoid replacing dependency versions)
 sed -i '' 's/^version = "0.1.0"/version = "0.2.0"/' src-tauri/Cargo.toml
+```
+
+**Windows (PowerShell):**
+
+```powershell
+(Get-Content package.json) -replace '"version": "0.1.0"', '"version": "0.2.0"' | Set-Content package.json
+(Get-Content src-tauri/tauri.conf.json) -replace '"version": "0.1.0"', '"version": "0.2.0"' | Set-Content src-tauri/tauri.conf.json
+(Get-Content src-tauri/Cargo.toml) -replace '^version = "0.1.0"', 'version = "0.2.0"' | Set-Content src-tauri/Cargo.toml
 ```
 
 Verify the changes look correct:
 
 ```bash
+# macOS / Linux
 grep '"version"' package.json src-tauri/tauri.conf.json
 grep '^version' src-tauri/Cargo.toml
+
+# Windows (PowerShell)
+Select-String '"version"' package.json, src-tauri/tauri.conf.json
+Select-String '^version' src-tauri/Cargo.toml
 ```
 
 All three should show `0.2.0`.
@@ -185,38 +205,52 @@ git push origin main --tags
 
 > **Why tag before building?** The tag marks the exact source that produced the release. If the build fails, delete the tag with `git tag -d v0.2.0 && git push origin :refs/tags/v0.2.0` and try again.
 
-### Step 3: Build the production DMG
+### Step 3: Build the production installers
 
 ```bash
 pnpm tauri build
 ```
 
-This compiles the Svelte frontend (minified via Vite) and the Rust backend (release profile with optimizations), then packages everything into a `.dmg`. Build time is typically 1–3 minutes.
+This compiles the Svelte frontend (minified via Vite) and the Rust backend (release profile with optimizations), then packages everything into platform-specific installers. Build time is typically 1–3 minutes.
 
-The output DMG is at:
+On macOS, the output is at:
 
 ```
 src-tauri/target/release/bundle/dmg/Markora_0.2.0_aarch64.dmg
 ```
 
-Verify it launches correctly before publishing:
+On Windows, the outputs are at:
 
-```bash
-open src-tauri/target/release/bundle/dmg/Markora_0.2.0_aarch64.dmg
+```
+src-tauri/target/release/bundle/nsis/Markora_0.2.0_x64-setup.exe
+src-tauri/target/release/bundle/msi/Markora_0.2.0_x64_en-US.msi
 ```
 
-This mounts the DMG — drag `Markora.app` to a temporary location and run it to confirm the new version works.
+Verify the installer launches correctly before publishing:
+
+```bash
+# macOS
+open src-tauri/target/release/bundle/dmg/Markora_0.2.0_aarch64.dmg
+
+# Windows (PowerShell)
+Start-Process "src-tauri\target\release\bundle\nsis\Markora_0.2.0_x64-setup.exe"
+```
 
 ### Step 4: Create the GitHub release
 
 ```bash
+# macOS — create release with DMG
 gh release create v0.2.0 \
   "src-tauri/target/release/bundle/dmg/Markora_0.2.0_aarch64.dmg" \
   --title "Markora v0.2.0" \
   --notes "Describe what changed in this release"
+
+# Windows — upload the NSIS installer to the same release
+gh release upload v0.2.0 \
+  "src-tauri/target/release/bundle/nsis/Markora_0.2.0_x64-setup.exe"
 ```
 
-This uploads the DMG and creates a release page at `https://github.com/yaozcoderepo/markora/releases/tag/v0.2.0`. Verify the page loads and the DMG download link works before proceeding.
+This creates a release page at `https://github.com/yaozcoderepo/markora/releases/tag/v0.2.0` with both macOS and Windows installers. Verify the page loads and both download links work before proceeding.
 
 ### Step 5: Update the Homebrew Cask
 
@@ -225,7 +259,11 @@ The Homebrew cask formula in your tap repo must be updated with the new version 
 **5a.** Generate the SHA-256 checksum of the new DMG:
 
 ```bash
+# macOS / Linux
 shasum -a 256 src-tauri/target/release/bundle/dmg/Markora_0.2.0_aarch64.dmg
+
+# Windows (PowerShell)
+Get-FileHash "src-tauri\target\release\bundle\nsis\Markora_0.2.0_x64-setup.exe" -Algorithm SHA256
 ```
 
 This outputs something like:
@@ -234,7 +272,7 @@ This outputs something like:
 e3b0c44298fc1c149afbf4c8996fb924...  Markora_0.2.0_aarch64.dmg
 ```
 
-Copy **only the hex string** (the part before the two spaces).
+Copy **only the hex string** (the part before the two spaces). On Windows PowerShell, copy the `Hash` field from the output.
 
 **5b.** Clone the tap repo and update the formula:
 
@@ -247,8 +285,13 @@ cd homebrew-tap
 **5c.** Update the version and checksum in the cask file (replace `NEW_SHA` with the hex string from step 5a):
 
 ```bash
+# macOS / Linux
 sed -i '' 's/version "0.1.0"/version "0.2.0"/' Casks/markora.rb
 sed -i '' 's/sha256 ".*"/sha256 "NEW_SHA"/' Casks/markora.rb
+
+# Windows (PowerShell)
+(Get-Content Casks/markora.rb) -replace 'version "0.1.0"', 'version "0.2.0"' | Set-Content Casks/markora.rb
+(Get-Content Casks/markora.rb) -replace 'sha256 ".*"', 'sha256 "NEW_SHA"' | Set-Content Casks/markora.rb
 ```
 
 **5d.** Verify the file looks right:
@@ -286,7 +329,14 @@ on:
 
 jobs:
   build:
-    runs-on: macos-latest
+    strategy:
+      matrix:
+        include:
+          - os: macos-latest
+            artifact: src-tauri/target/release/bundle/dmg/*.dmg
+          - os: windows-latest
+            artifact: src-tauri/target/release/bundle/nsis/*.exe
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
 
@@ -307,7 +357,28 @@ jobs:
 
       - uses: softprops/action-gh-release@v2
         with:
-          files: src-tauri/target/release/bundle/dmg/*.dmg
+          files: ${{ matrix.artifact }}
 ```
 
-This builds and uploads the DMG to GitHub Releases automatically whenever you push a version tag. You still need to manually update the Homebrew cask (step 5 above) after the CI release completes.
+This builds on both macOS and Windows in parallel, then uploads the DMG and NSIS installer to GitHub Releases automatically whenever you push a version tag. You still need to manually update the Homebrew cask (step 5 above) after the CI release completes.
+
+## Windows Distribution (Optional)
+
+In addition to GitHub Releases, you can distribute the Windows installer via package managers:
+
+### Scoop
+
+[Scoop](https://scoop.sh/) is a command-line installer for Windows, similar to Homebrew. Create a **bucket** (like a Homebrew tap):
+
+1. Create a GitHub repo named `scoop-bucket`
+2. Add a `markora.json` manifest pointing to the NSIS `.exe` from your GitHub release
+3. Users install with: `scoop bucket add markora https://github.com/yaozcoderepo/scoop-bucket && scoop install markora`
+
+### winget
+
+[winget](https://learn.microsoft.com/en-us/windows/package-manager/) is Microsoft's official package manager. To submit:
+
+1. Fork [microsoft/winget-pkgs](https://github.com/microsoft/winget-pkgs)
+2. Add a manifest YAML under `manifests/y/yaozcoderepo/Markora/0.1.0/`
+3. Submit a PR — the winget team reviews and merges it
+4. Users install with: `winget install yaozcoderepo.Markora`

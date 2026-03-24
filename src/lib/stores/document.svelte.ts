@@ -1,4 +1,5 @@
 import type { Heading } from "../types/index.js";
+import { extractFileName } from "../utils/platform.js";
 
 export type TabMode = "edit" | "preview";
 
@@ -84,7 +85,7 @@ export function addTab(
   }
 
   const id = `tab-${Date.now()}`;
-  const fileName = path.split("/").pop() ?? path;
+  const fileName = extractFileName(path);
   tabs.push({ id, path, fileName, rawContent, html, headings, scrollTop: 0, isDirty: false, mode: "preview" });
   activeTabId = id;
   error = null;
@@ -155,7 +156,7 @@ export function markSaved(tabId: string, path?: string) {
     tab.isDirty = false;
     if (path) {
       tab.path = path;
-      tab.fileName = path.split("/").pop() ?? path;
+      tab.fileName = extractFileName(path);
     }
   }
 }

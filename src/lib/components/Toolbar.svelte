@@ -6,6 +6,7 @@
     toggleOutline,
     type Theme,
   } from "../stores/settings.svelte.js";
+  import { modKey } from "../utils/platform.js";
 
   let {
     fileName,
@@ -64,7 +65,7 @@
       <button
         class="toolbar-btn"
         onclick={onToggleSearch}
-        title="Search (Cmd+F)"
+        title="Search ({modKey}+F)"
       >
         <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
           <path
@@ -77,7 +78,7 @@
       <button
         class="toolbar-btn"
         onclick={onToggleMode}
-        title={mode === "edit" ? "Preview (Cmd+E)" : "Edit (Cmd+E)"}
+        title={mode === "edit" ? `Preview (${modKey}+E)` : `Edit (${modKey}+E)`}
       >
         {#if mode === "edit"}
           <!-- Eye icon — switch to preview -->
@@ -95,7 +96,7 @@
 
       <!-- Save button -->
       {#if isDirty}
-        <button class="toolbar-btn" onclick={onSave} title="Save (Cmd+S)">
+        <button class="toolbar-btn" onclick={onSave} title="Save ({modKey}+S)">
           <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
             <path d="M11.5 1H2.5A1.5 1.5 0 001 2.5v11A1.5 1.5 0 002.5 15h11a1.5 1.5 0 001.5-1.5V4.5L11.5 1zM8 13a2 2 0 110-4 2 2 0 010 4zM11 5H3V2h8v3z" />
           </svg>
@@ -103,12 +104,12 @@
       {/if}
     {/if}
 
-    <button class="toolbar-btn" onclick={onNewFile} title="New file (Cmd+N)">
+    <button class="toolbar-btn" onclick={onNewFile} title="New file ({modKey}+N)">
       <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
         <path d="M8 2a.5.5 0 01.5.5v5h5a.5.5 0 010 1h-5v5a.5.5 0 01-1 0v-5h-5a.5.5 0 010-1h5v-5A.5.5 0 018 2z" />
       </svg>
     </button>
-    <button class="toolbar-btn" onclick={onOpenFile} title="Open file (Cmd+O)">
+    <button class="toolbar-btn" onclick={onOpenFile} title="Open file ({modKey}+O)">
       <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
         <path
           d="M1 3.5A1.5 1.5 0 012.5 2h3.879a1.5 1.5 0 011.06.44l1.122 1.12A1.5 1.5 0 009.62 4H13.5A1.5 1.5 0 0115 5.5v7a1.5 1.5 0 01-1.5 1.5h-11A1.5 1.5 0 011 12.5v-9zM2.5 3a.5.5 0 00-.5.5v9a.5.5 0 00.5.5h11a.5.5 0 00.5-.5v-7a.5.5 0 00-.5-.5H9.62a2.5 2.5 0 01-1.768-.732L6.732 3.146A.5.5 0 006.379 3H2.5z"

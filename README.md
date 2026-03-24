@@ -1,6 +1,6 @@
 # Markora
 
-A fast, native markdown viewer and editor for macOS, built with [Tauri v2](https://v2.tauri.app/) and [Svelte 5](https://svelte.dev/). Designed as a free, open-source alternative to Typora.
+A fast, native markdown viewer and editor for macOS and Windows, built with [Tauri v2](https://v2.tauri.app/) and [Svelte 5](https://svelte.dev/). Designed as a free, open-source alternative to Typora.
 
 ## Features
 
@@ -15,29 +15,29 @@ A fast, native markdown viewer and editor for macOS, built with [Tauri v2](https
 
 - **Inline editing** — double-click anywhere in preview mode to jump directly into the editor at that exact position
 - **CodeMirror 6 editor** — markdown syntax highlighting, line wrapping, full undo/redo history
-- **Save** — `Cmd+S` saves to disk; new files prompt a save dialog
+- **Save** — `Cmd+S` / `Ctrl+S` saves to disk; new files prompt a save dialog
 
 ### Navigation
 
 - **Tabs** — open multiple files in tabs within a single window; middle-click to close
-- **Search** — `Cmd+F` opens a unified search bar that works in both read and write modes, with match highlighting and prev/next navigation
+- **Search** — `Cmd+F` / `Ctrl+F` opens a unified search bar that works in both read and write modes, with match highlighting and prev/next navigation
 - **Drag and drop** — drop `.md` files from Finder to open them
 
 ### Appearance
 
 - **Three themes** — Light, Dark, and Sepia, toggled from the toolbar
-- **Native feel** — draggable title bar, native file dialogs, macOS-appropriate styling
+- **Native feel** — draggable title bar, native file dialogs, platform-appropriate styling
 
 ### Keyboard Shortcuts
 
-| Shortcut | Action |
-| --- | --- |
-| `Cmd+O` | Open file |
-| `Cmd+N` | New file |
-| `Cmd+S` | Save |
-| `Cmd+E` | Toggle edit / preview mode |
-| `Cmd+F` | Search |
-| `Escape` | Close search |
+| macOS | Windows | Action |
+| --- | --- | --- |
+| `Cmd+O` | `Ctrl+O` | Open file |
+| `Cmd+N` | `Ctrl+N` | New file |
+| `Cmd+S` | `Ctrl+S` | Save |
+| `Cmd+E` | `Ctrl+E` | Toggle edit / preview mode |
+| `Cmd+F` | `Ctrl+F` | Search |
+| `Escape` | `Escape` | Close search |
 
 ## Architecture
 
@@ -79,11 +79,21 @@ markora/
 
 ## Prerequisites
 
+### macOS
+
 - **macOS** on Apple Silicon (aarch64) — Intel Macs should also work but are untested
 - **Rust** — install via [rustup](https://rustup.rs/): `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh`
 - **Node.js** >= 18
 - **pnpm** — install via `npm install -g pnpm` or `brew install pnpm`
 - **Xcode Command Line Tools** — `xcode-select --install`
+
+### Windows
+
+- **Windows** 10 or later (x64)
+- **Rust** — install via [rustup](https://rustup.rs/)
+- **Node.js** >= 18
+- **pnpm** — install via `npm install -g pnpm`
+- **Visual Studio Build Tools** — install with the "Desktop development with C++" workload (required by Tauri for the MSVC toolchain and WebView2 SDK)
 
 ## Development
 
@@ -131,20 +141,32 @@ pnpm tauri build
 
 This compiles the frontend (Vite, minified) and the Rust backend (release profile with LTO and stripping), then bundles everything into distributable formats:
 
+**macOS outputs:**
+
 | Output | Path |
 | --- | --- |
 | Binary | `src-tauri/target/release/markora` |
 | macOS App | `src-tauri/target/release/bundle/macos/Markora.app` |
 | DMG Installer | `src-tauri/target/release/bundle/dmg/Markora_0.1.0_aarch64.dmg` |
 
+**Windows outputs:**
+
+| Output | Path |
+| --- | --- |
+| MSI Installer | `src-tauri/target/release/bundle/msi/Markora_0.1.0_x64_en-US.msi` |
+| NSIS Installer | `src-tauri/target/release/bundle/nsis/Markora_0.1.0_x64-setup.exe` |
+
 To test the production build locally:
 
 ```bash
-# Run the .app directly
+# macOS — run the .app directly
 open src-tauri/target/release/bundle/macos/Markora.app
 
-# Or run the binary
+# macOS — or run the binary
 ./src-tauri/target/release/markora
+
+# Windows — run the exe
+.\src-tauri\target\release\markora.exe
 ```
 
 ## License
