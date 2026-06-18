@@ -30,5 +30,8 @@
     "svelte": "^5",
     "typescript": "^5.7",
     "vite": "^6"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": ["esbuild"]
   }
 }
