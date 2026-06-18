@@ -1,0 +1,76 @@
+name: Release
+
+# Build and publish installers for macOS and Windows whenever a version tag
+# (e.g. v0.2.0) is pushed. Each platform builds on its own native runner —
+# Tauri cannot cross-compile a Windows installer from macOS, so a Windows
+# runner is required to produce the .exe / .msi.
+on:
+  push:
+    tags:
+      - "v*"
+
+# The default GITHUB_TOKEN needs write access to create the release and
+# upload assets.
+permissions:
+  contents: write
+
+jobs:
+  release:
+    strategy:
+      # Don't cancel the macOS build if the Windows one fails (or vice versa).
+      fail-fast: false
+      matrix:
+        include:
+          - platform: macos-latest # Apple Silicon runner -> aarch64 .dmg
+            args: "--target aarch64-apple-darwin"
+            rust-targets: "aarch64-apple-darwin"
+          - platform: windows-latest # x64 runner -> NSIS .exe + MSI
+            args: ""
+            rust-targets: ""
+
+    runs-on: ${{ matrix.platform }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: latest
+
+      - name: Install Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.rust-targets }}
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "./src-tauri -> target"
+
+      - name: Install frontend dependencies
+        run: pnpm install
+
+      # tauri-action runs `tauri build` (which runs `pnpm build` first via the
+      # beforeBuildCommand), then creates/updates a single GitHub release for
+      # this tag and uploads each platform's bundle to it.
+      - name: Build and release
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: "Markora ${{ github.ref_name }}"
+          releaseBody: "See the assets below to download and install this version. macOS users: `.dmg`. Windows users: `-setup.exe`."
+          # Publish as a draft so you can review both installers and write
+          # release notes before making it public. Set to false to publish
+          # automatically.
+          releaseDraft: true
+          prerelease: false
+          args: ${{ matrix.args }}

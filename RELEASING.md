@@ -316,51 +316,44 @@ git push origin main
 brew update && brew upgrade --cask markora
 ```
 
-## CI/CD with GitHub Actions
+## CI/CD with GitHub Actions (recommended)
 
-For automated builds on every tagged release, add `.github/workflows/release.yml`:
+This repo ships a release workflow at [`.github/workflows/release.yml`](.github/workflows/release.yml). It is the **recommended way to release**, because it produces the **Windows** installer for you — Tauri cannot cross-compile a Windows `.exe`/MSI from macOS, so without CI you would need a physical Windows machine to build it.
 
-```yaml
-name: Release
+### What it does
 
-on:
-  push:
-    tags: ["v*"]
+When you push a tag matching `v*`, the workflow builds on two native runners **in parallel**:
 
-jobs:
-  build:
-    strategy:
-      matrix:
-        include:
-          - os: macos-latest
-            artifact: src-tauri/target/release/bundle/dmg/*.dmg
-          - os: windows-latest
-            artifact: src-tauri/target/release/bundle/nsis/*.exe
-    runs-on: ${{ matrix.os }}
-    steps:
-      - uses: actions/checkout@v4
+| Runner | Produces |
+| --- | --- |
+| `macos-latest` (Apple Silicon) | `Markora_<version>_aarch64.dmg` |
+| `windows-latest` (x64) | `Markora_<version>_x64-setup.exe` (NSIS) + `Markora_<version>_x64_en-US.msi` |
 
-      - uses: pnpm/action-setup@v4
-        with:
-          version: latest
+Both jobs upload their bundles to a **single GitHub release** for that tag, created as a **draft** so you can review the artifacts and write release notes before publishing.
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: pnpm
+### Releasing with CI
 
-      - uses: dtolnay/rust-toolchain@stable
+This replaces steps 3–4 of the manual flow above — you only bump the version, then push a tag:
 
-      - run: pnpm install
-
-      - run: pnpm tauri build
-
-      - uses: softprops/action-gh-release@v2
-        with:
-          files: ${{ matrix.artifact }}
+```bash
+# After Step 1 (bump version) and Step 2 (commit + tag + push), CI takes over.
+# Just make sure the tag is pushed:
+git push origin main --tags
 ```
 
-This builds on both macOS and Windows in parallel, then uploads the DMG and NSIS installer to GitHub Releases automatically whenever you push a version tag. You still need to manually update the Homebrew cask (step 5 above) after the CI release completes.
+Then:
+
+1. Watch the build under the repo's **Actions** tab (~3–6 min for both platforms).
+2. When it finishes, go to **Releases** → find the new **draft** → verify all three installers (`.dmg`, `-setup.exe`, `.msi`) are attached → edit the notes → **Publish**.
+3. Update the Homebrew cask (Step 5 above) — CI does **not** do this, since the tap lives in a separate repo.
+
+> **Want it fully automatic?** Set `releaseDraft: false` in the workflow and the release is published as soon as both builds finish (no manual review step).
+
+### Notes
+
+- The workflow uses [`tauri-apps/tauri-action`](https://github.com/tauri-apps/tauri-action), which runs `tauri build` (including the `pnpm build` frontend step) and handles release creation + asset upload — no manual `gh release` calls needed.
+- It builds macOS for **Apple Silicon only** (`aarch64`), matching the current release and the Homebrew cask URL. To also ship Intel Macs, add a second `macos-latest` matrix entry with `args: "--target x86_64-apple-darwin"` and the matching `rust-targets`.
+- No secrets are required beyond the automatic `GITHUB_TOKEN`. (Code signing / notarization would need additional secrets, but the app currently ships unsigned.)
 
 ## Windows Distribution (Optional)
 
