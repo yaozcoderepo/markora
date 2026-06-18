@@ -36,7 +36,10 @@ jobs:
       - name: Install pnpm
         uses: pnpm/action-setup@v4
         with:
-          version: latest
+          # Pinned for reproducible releases. pnpm 11 renamed the build-script
+          # approval setting (onlyBuiltDependencies -> allowBuilds), so do not
+          # use "latest" — a major bump would break `pnpm install` in CI.
+          version: 10.32.1
 
       - name: Install Node
         uses: actions/setup-node@v4

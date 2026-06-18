@@ -1,0 +1,5 @@
+# pnpm reads project settings from this file (the package.json "pnpm" field is
+# deprecated). Approve esbuild's build script so `pnpm install` does not exit
+# non-zero in CI, where pnpm blocks unapproved dependency build scripts.
+onlyBuiltDependencies:
+  - esbuild
